@@ -2,10 +2,9 @@
 client.py Made By: Andrew Erickson
 """
 import socket
+import defns
 
-HEADER = 64  # define msg length
-FORMAT = "utf-8"
-DISCONNECT_MSG = "EXIT"
+
 SERVER = "10.0.2.15"  # TODO change to the cmd args
 PORT = 38501
 ADDR = (SERVER, PORT)
@@ -15,16 +14,29 @@ client.connect(ADDR)
 
 
 def send(msg):
-    message = msg.encode(FORMAT)
+    message = msg.encode(defns.FORMAT)
     msg_len = len(message)
-    send_len = str(msg_len).encode(FORMAT)
-    send_len += b' ' * (HEADER - len(send_len))
+    send_len = str(msg_len).encode(defns.FORMAT)
+    send_len += b' ' * (defns.HEADER - len(send_len))
     client.send(send_len)
     client.send(message)
-    print(client.recv(2048).decode(FORMAT))
+    ack = client.recv(2048).decode(defns.FORMAT)
+    if ack == defns.DISCONNECT_MSG:
+        print("Server disconnected. Stopping")
+        raise defns.Disconnected
 
 
-for i in range(0, 10):
-    send(str(i))
+def start():
+    try:
+        for i in range(0, 10):
+            s = input("msg: ")
+            send(s)
+        send(defns.DISCONNECT_MSG)  # exit from server
+    except KeyboardInterrupt:
+        print("\nCaught keyboard interrupt...Stopping")
+        send(defns.DISCONNECT_MSG)  # exit from server
+    except defns.Disconnected:
+        pass  # server stopped do nothing and end
 
-send(DISCONNECT_MSG)  # exit from server
+
+start()
