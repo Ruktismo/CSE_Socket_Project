@@ -1,3 +1,7 @@
+"""
+server.py Made By: Andrew Erickson
+"""
+
 import socket
 import threading
 import sys

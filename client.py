@@ -1,3 +1,6 @@
+"""
+client.py Made By: Andrew Erickson
+"""
 import socket
 
 HEADER = 64  # define msg length
