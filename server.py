@@ -24,6 +24,7 @@ else:
 # SERVER = "127.0.0.1"  # can put in IP manually
 SERVER_IP = socket.gethostbyname(socket.gethostname())  # or just have socket get it auto
 ADDR = (SERVER_IP, PORT)
+print(socket.gethostname())
 print(ADDR)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
 server.bind(ADDR)  # binds socket to IP PORT
@@ -64,13 +65,13 @@ def send(conn: socket.socket, msg_json):
 
 def run_cmd(conn: socket.socket, addr, msg):
     cmd = msg['cmd']
-    if cmd is 'p':  # just a basic ping
+    if cmd == 'p':  # just a basic ping
         conn.send(json.dumps(msg).encode(defns.FORMAT))  # ack msg
-    elif cmd is 'r':
+    elif cmd == 'r':
         log("Registering new user")
         newU = defns.User(addr[0], addr[1])
         ret = cmds.register_user(msg, newU)
-        if ret is "SUCCESS":
+        if ret == "SUCCESS":
             log(f"New user {newU.handle} made")
             send(conn, defns.ack_json("SUCCESS"))  # send ok ack
         else:
