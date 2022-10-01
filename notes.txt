@@ -1,0 +1,9 @@
+cmds:
+
+    r: register @<handle> <IPv4-address> <port_in> <port_out>
+    q: query handles
+    f: follow @<handle-me> @<handle>
+    d: drop @<handle-me> @<handle>
+    t: tweet @<handle> "tweet"
+    e: end-tweet @<handle>
+    x: exit @<handle>
