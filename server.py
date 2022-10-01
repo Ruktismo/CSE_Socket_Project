@@ -24,6 +24,7 @@ else:
 # SERVER = "127.0.0.1"  # can put in IP manually
 SERVER_IP = socket.gethostbyname(socket.gethostname())  # or just have socket get it auto
 ADDR = (SERVER_IP, PORT)
+print(ADDR)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
 server.bind(ADDR)  # binds socket to IP PORT
 
@@ -75,17 +76,17 @@ def run_cmd(conn: socket.socket, addr, msg):
         else:
             log(f"New user {newU.handle} NOT made. Reason: {ret}")
             send(conn, defns.ack_json("FAIL"))  # send fail ack
-    elif cmd is 'q':
+    elif cmd == 'q':
         pass
-    elif cmd is 'f':
+    elif cmd == 'f':
         pass
-    elif cmd is 'd':
+    elif cmd == 'd':
         pass
-    elif cmd is 't':
+    elif cmd == 't':
         pass
-    elif cmd is 'e':
+    elif cmd == 'e':
         pass
-    elif cmd is 'x':
+    elif cmd == 'x':
         pass
     else:
         send(conn, defns.ack_json(f"unknown cmd: {cmd}"))  # send cmd not known ack
