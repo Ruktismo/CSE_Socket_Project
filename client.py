@@ -18,8 +18,8 @@ if len(sys.argv) == 3:
     else:
         print("PORT OUT OF RANGE. USING DEFAULT PORT OF 38501")
 ADDR = (SERVER, PORT)
-# CLIENT_IP = socket.gethostbyname(socket.gethostname())
-CLIENT_IP = "0.0.0.0"
+CLIENT_IP = socket.gethostbyname(socket.gethostname())
+# CLIENT_IP = "0.0.0.0"
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
 
 # generate a random port between 38500 and 38999
@@ -40,20 +40,6 @@ Local_Users = {}  # holds any local info about users
 def log(s):
     print(f"Client: {s}")
 
-def send2(msg):
-    message = msg.encode(defns.FORMAT)
-    msg_len = len(message)
-    send_len = str(msg_len).encode(defns.FORMAT)
-    send_len += b' ' * (defns.HEADER - len(send_len))
-    client.send(send_len)
-    client.send(message)
-    ack = client.recv(2048).decode(defns.FORMAT)
-    if ack == defns.DISCONNECT_MSG:
-        log("Server disconnected. Stopping")
-        raise defns.Disconnected
-    else:
-        return ack
-
 def send_exit():
     # sends an exit msg and expects nothing back
     s = json.dumps({'EXIT': defns.DISCONNECT_MSG})
@@ -64,7 +50,7 @@ def send(msg):
     s = json.dumps(msg)
     client.send(s.encode(defns.FORMAT))
     ack_json = client.recv(defns.MAXBUFF).decode(defns.FORMAT)
-    print(ack_json)
+    # log(ack_json)
     ack = json.loads(ack_json)
     if 'EXIT' in ack:
         log("Server disconnected. Stopping")
@@ -79,7 +65,7 @@ def register(s):
         return
     newU = defns.User(CLIENT_ADDR[0], CLIENT_ADDR[1])
     # check is handle is used locally
-    ret = newU.register(args[1][1:], args[3], args[4])
+    ret = newU.register(args[1][1:], int(args[3]), int(args[4]), True)
     if ret == "Handle In Use":
         log("Handle In Use")
         return
@@ -93,6 +79,37 @@ def register(s):
     else:
         log("Handle In Use")
 
+def query():
+    ack = send({'cmd': 'q'})
+    if 'ack' in ack:
+        log(f"Number of users: {ack['userC']}")
+        log("Users:")
+        for u in ack['users']:
+            log('\t' + u)
+    else:
+        log(f"Unknown ack: {ack}")
+
+def follow(m):
+    # check that user exist
+    args = m.split(' ')
+    if len(args) != 3:
+        log("Wrong number of args")
+        return
+    handle = args[1][1:]
+    if handle not in defns.UserList:
+        log(f"{args[1]} is not a user")
+        return
+    u = defns.UserList[handle].follow_json(args[2][1:])
+    ack = send(u)
+    if 'ack' in ack:
+        if ack['ack'] == "follow complete":
+            defns.UserList[handle].following.append(args[2][1:])
+            log(f'@{handle} is now following {args[2]}')
+        else:
+            log(f"Follow failed, {ack}")
+    else:
+        log(f'Follow failed, Unknown ack: {ack}')
+    return
 
 def start():
     log(f"Connected to server using IP: {CLIENT_ADDR[0]}, Port: {CLIENT_ADDR[1]}")
@@ -103,23 +120,18 @@ def start():
             if cmd.startswith("register"):
                 register(cmd)
             elif cmd == "query handles":
-                pass
+                query()
             elif cmd.startswith("follow"):
-                pass
+                follow(cmd)
             elif cmd.startswith("drop"):
                 pass
             elif cmd.startswith("exit"):
                 connected = False
             else:
                 log("Command not recognised")
-
-        for i in range(0, 3):
-            s = input("msg: ")
-            js = {'cmd': 'p', 'msg': s}
-            send(js)
         send_exit()  # exit from server
     except KeyboardInterrupt:
-        log("\nCaught keyboard interrupt...Stopping")
+        log("Caught keyboard interrupt...Stopping")
         send_exit()  # exit from server
     except defns.Disconnected:
         pass  # server stopped do nothing and end

@@ -1,5 +1,5 @@
 cmds:
-
+    k: msg
     r: register @<handle> <IPv4-address> <port_in> <port_out>
     q: query handles
     f: follow @<handle-me> @<handle>
@@ -7,3 +7,5 @@ cmds:
     t: tweet @<handle> "tweet"
     e: end-tweet @<handle>
     x: exit @<handle>
+
+https://www.youtube.com/watch?v=3QiPPX-KeSc

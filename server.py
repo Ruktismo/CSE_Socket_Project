@@ -34,37 +34,8 @@ except OSError:
     ADDR = (SERVER_IP, PORT)
     server.bind(ADDR)
 
-
-# can store the user info in a dictionary (Handle, usr_obj)
-
 def log(s: str):
     print("server: " + s)
-
-
-def handle_client2(conn: socket.socket, addr):
-    log(f"New client on IP: {addr[0]} Port: {addr[1]}\tActive users: {threading.activeCount() - 1}")
-
-    connected = True
-    try:
-        while connected:
-            # recv length can be bigger than msg, just try to make it as small as possible
-            msg_length = conn.recv(defns.HEADER).decode(defns.FORMAT)  # Blocking get msg length
-            if msg_length:  # when first connecting an empty packet is sent, we won't handle it
-                msg_length = int(msg_length)
-                msg = conn.recv(msg_length).decode(defns.FORMAT)  # Blocking get message then decode to str
-                if msg == defns.DISCONNECT_MSG:
-                    connected = False
-                else:
-                    # process message
-                    log(f"[{addr}] {msg}")
-                    conn.send("Msg received".encode(defns.FORMAT))  # ack msg
-    except KeyboardInterrupt:
-        log("Caught keyboard interrupt...Stopping")
-        conn.send(defns.DISCONNECT_MSG.encode(defns.FORMAT))
-        raise KeyboardInterrupt
-    finally:
-        conn.close()  # when a keyboard interrupt happens close the connection
-        log(f"[{addr}] disconnected Active users: {threading.activeCount() - 2}")
 
 def send(conn: socket.socket, msg_json):
     conn.send(json.dumps(msg_json).encode(defns.FORMAT))
@@ -84,11 +55,12 @@ def run_cmd(conn: socket.socket, addr, msg):
             log(f"New user {newU.handle} NOT made. Reason: {ret}")
             send(conn, defns.ack_json("FAIL"))  # send fail ack
     elif cmd == 'q':
-        pass
+        log("Querying handles")
+        cmds.query(conn)
     elif cmd == 'f':
-        pass
+        cmds.follow(conn, msg)
     elif cmd == 'd':
-        pass
+        cmds.drop(conn, msg)
     elif cmd == 't':
         pass
     elif cmd == 'e':
