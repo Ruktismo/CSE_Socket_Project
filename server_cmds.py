@@ -29,7 +29,7 @@ def follow(conn: socket.socket, msg):
     defns.UserList[msg['h2']].followers.append('h1')
     # pass follower info to handle2
     u2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
-    soc, port = defns.get_sock(socket.gethostbyname(socket.gethostname()), u2)
+    soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2)
     follow_cmd = {'cmd': 'f', 'handle': msg['h1']}
     soc.send(json.dumps(follow_cmd).encode(defns.FORMAT))
     ack = json.loads(soc.recv(defns.MAXBUFF).decode(defns.FORMAT))

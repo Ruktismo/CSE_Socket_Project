@@ -21,15 +21,15 @@ else:
     print("PORT OUT OF RANGE. USING DEFAULT PORT OF 38500")
     PORT = 38500
 
-SERVER_IP = "0.0.0.0"  # can put in IP manually, set to all interfaces
-# SERVER_IP = socket.gethostbyname(socket.gethostname())  # or just have socket get it auto
+# SERVER_IP = "0.0.0.0"  # can put in IP manually, set to all interfaces
+SERVER_IP = socket.gethostbyname_ex(socket.getfqdn())[2][0]  # or just have socket get it auto
 ADDR = (SERVER_IP, PORT)
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
 
 try:
     server.bind(ADDR)  # binds socket to IP PORT
 except OSError:
-    print(f"Error: cannot resolve host IP automatically. Manual entry required")
+    print(f"Error: cannot resolve host IP automatically. Manual entry required, use ifconfig to get address")
     SERVER_IP = input("IP: ")
     ADDR = (SERVER_IP, PORT)
     server.bind(ADDR)
@@ -106,5 +106,5 @@ def start():
             exit(0)
 
 
-log(f"Server is starting with IP: {socket.gethostbyname(socket.gethostname())} and port: {PORT}")
+log(f"Server is starting with IP: {SERVER_IP} and port: {PORT}")
 start()
