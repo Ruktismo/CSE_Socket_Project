@@ -99,6 +99,9 @@ def follow(m):
     if handle not in defns.UserList:
         log(f"{args[1]} is not a user")
         return
+    if args[2][1:] in defns.UserList[handle].following:
+        log(f"Already following {args[2]}")
+        return
     u = defns.UserList[handle].follow_json(args[2][1:])
     ack = send(u)
     if 'ack' in ack:
@@ -106,9 +109,34 @@ def follow(m):
             defns.UserList[handle].following.append(args[2][1:])
             log(f'@{handle} is now following {args[2]}')
         else:
-            log(f"Follow failed, {ack}")
+            log(f"Follow failed, {ack['ack']}")
     else:
         log(f'Follow failed, Unknown ack: {ack}')
+    return
+
+def drop(m):
+    # check that user exist
+    args = m.split(' ')
+    if len(args) != 3:
+        log("Wrong number of args")
+        return
+    handle = args[1][1:]
+    if handle not in defns.UserList:
+        log(f"{args[1]} is not a user")
+        return
+    if args[2][1:] in defns.UserList[handle].following:
+        log(f"Not following {args[2]}")
+        return
+    u = defns.UserList[handle].drop_json(args[2][1:])
+    ack = send(u)
+    if 'ack' in ack:
+        if ack['ack'] == "drop complete":
+            defns.UserList[handle].following.remove(args[2][1:])
+            log(f'@{handle} is no longer following {args[2]}')
+        else:
+            log(f"drop failed, {ack['ack']}")
+    else:
+        log(f'drop failed, Unknown ack: {ack}')
     return
 
 def start():
@@ -124,7 +152,7 @@ def start():
             elif cmd.startswith("follow"):
                 follow(cmd)
             elif cmd.startswith("drop"):
-                pass
+                drop(cmd)
             elif cmd.startswith("exit"):
                 connected = False
             else:

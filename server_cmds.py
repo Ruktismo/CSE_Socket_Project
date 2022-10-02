@@ -23,6 +23,7 @@ def follow(conn: socket.socket, msg):
     # check if handles are in use
     if (msg['h1'] not in defns.UserList) or (msg['h2'] not in defns.UserList):
         conn.send(json.dumps({'ack': 'follow failed, user not found'}).encode(defns.FORMAT))  # send error ack
+        return
     # add handle2 to following handle1
     defns.UserList[msg['h1']].following.append('h2')
     # add handle1 as follower of handle2
@@ -41,7 +42,27 @@ def follow(conn: socket.socket, msg):
     return
 
 def drop(conn: socket.socket, msg):
-    # remove handle2 to following handle1
-    # remove handle1 as follower of handle2
-    # pass follower info to handle2
-    pass
+    # check if handles are in use
+    if (msg['h1'] not in defns.UserList) or (msg['h2'] not in defns.UserList):
+        conn.send(json.dumps({'ack': 'user not found'}).encode(defns.FORMAT))  # send error ack
+        return
+    try:
+        # remove handle2 to following handle1
+        defns.UserList[msg['h1']].following.remove('h2')
+        # remove handle1 as follower of handle2
+        defns.UserList[msg['h2']].followers.remove('h1')
+    except ValueError:
+        conn.send(json.dumps({'ack': 'not following'}).encode(defns.FORMAT))
+        return
+    # pass drop info to handle2
+    u2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
+    soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2)
+    follow_cmd = {'cmd': 'd', 'handle': msg['h1']}
+    soc.send(json.dumps(follow_cmd).encode(defns.FORMAT))
+    ack = json.loads(soc.recv(defns.MAXBUFF).decode(defns.FORMAT))
+    if 'ack' in ack and ack['ack'] == 'drop complete':
+        conn.send(json.dumps(ack).encode(defns.FORMAT))  # follow complete
+    else:
+        conn.send(json.dumps({'ack': 'drop failed'}).encode(defns.FORMAT))  # follow failed
+    soc.close()
+    return

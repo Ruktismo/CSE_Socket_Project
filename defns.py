@@ -32,6 +32,7 @@ def client_in(ip, port, user):
         elif 'd' in msg['cmd']:
             # someone has unfollowed us. remove them
             user.followers.remove(msg['handle'])
+            conn.send(json.dumps({'ack': 'drop complete'}).encode(FORMAT))
         elif 't' in msg['cmd']:
             pass
         else:
@@ -83,6 +84,13 @@ class User:
     def follow_json(self, user):
         return {
             'cmd': 'f',
+            'h1': self.handle,
+            'h2': user
+        }
+
+    def drop_json(self, user):
+        return {
+            'cmd': 'd',
             'h1': self.handle,
             'h2': user
         }
