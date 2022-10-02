@@ -18,7 +18,8 @@ if len(sys.argv) == 3:
     else:
         print("PORT OUT OF RANGE. USING DEFAULT PORT OF 38501")
 ADDR = (SERVER, PORT)
-CLIENT_IP = socket.gethostbyname(socket.gethostname())
+# CLIENT_IP = socket.gethostbyname(socket.gethostname())
+CLIENT_IP = "0.0.0.0"
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
 
 # generate a random port between 38500 and 38999

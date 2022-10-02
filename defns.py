@@ -37,7 +37,7 @@ class User:
     # make a to_json for each type of msg that can be sent
     def reg_json(self):
         return {
-            'cmd': 'i',
+            'cmd': 'r',
             'handle': self.handle,
             'ip': self.ip,
             'port_in': self.port_in,
