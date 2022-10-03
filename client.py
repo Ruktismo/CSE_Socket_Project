@@ -24,7 +24,7 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with 
 
 # generate a random port between 38500 and 38999
 # if it raises an OSError roll again
-CLIENT_ADDR = (CLIENT_IP, 38502)
+CLIENT_ADDR = None
 while CLIENT_ADDR is None:
     temp = r.randint(38500, 38999)
     try:
