@@ -3,7 +3,6 @@ import socket
 import threading
 import random as r
 
-import defns
 
 # shared vars for server and client
 HEADER = 64  # define msg length can change later to be max buff may use 256 need to check max size that can be sent
@@ -20,7 +19,7 @@ def client_in(ip, port, user):
     user_in.bind((ip, port))
     user_in.listen()  # open socket to listen
     print(f'Client: User @{user.handle} now listening on port {port}')
-    while True:
+    while user.alive:
         conn, addr = user_in.accept()  # when a connection is made
         msg_json = conn.recv(MAXBUFF).decode(FORMAT)  # it should just be one message long
         msg = json.loads(msg_json)
@@ -38,6 +37,7 @@ def client_in(ip, port, user):
         else:
             print("Client: Unknown msg")
         conn.close()
+    return
 
 def ack_json(ack):
     return {'ack': ack}
@@ -52,6 +52,7 @@ class User:
         self.port_out = None  # port used to send tweets
         self.handle = None
         self.in_thread = None
+        self.alive = True
 
     def register(self, handle: str, port_in, port_out, is_client):
         self.handle = handle
@@ -61,11 +62,10 @@ class User:
             self.port_in = port_in
             self.port_out = port_out
             # TODO verify that ports are unique on client and make sockets
-            # TODO branch new thread for port in look at
             if is_client:
                 # spawn off new thread
                 print(f"spawning off new thread for: @{self.handle}")
-                self.in_thread = threading.Thread(target=client_in, args=(self.ip, self.port_in, self))
+                self.in_thread = threading.Thread(target=client_in, args=(self.ip, self.port_in, self), daemon=True)
                 self.in_thread.start()
             return "SUCCESS"
         else:

@@ -66,7 +66,7 @@ def run_cmd(conn: socket.socket, addr, msg):
     elif cmd == 'e':
         pass
     elif cmd == 'x':
-        pass
+        cmds.exit_user(conn, msg)
     else:
         send(conn, defns.ack_json(f"unknown cmd: {cmd}"))  # send cmd not known ack
 

@@ -50,7 +50,7 @@ def send(msg):
     s = json.dumps(msg)
     client.send(s.encode(defns.FORMAT))
     ack_json = client.recv(defns.MAXBUFF).decode(defns.FORMAT)
-    # log(ack_json)
+    log(ack_json)
     ack = json.loads(ack_json)
     if 'EXIT' in ack:
         log("Server disconnected. Stopping")
@@ -70,6 +70,7 @@ def register(s):
         log("Handle In Use")
         return
     elif ret == "Port in use":
+        log("Port in use")
         return
     # send request to server
     # build and send register json cmd
@@ -124,7 +125,7 @@ def drop(m):
     if handle not in defns.UserList:
         log(f"{args[1]} is not a user")
         return
-    if args[2][1:] in defns.UserList[handle].following:
+    if args[2][1:] not in defns.UserList[handle].following:
         log(f"Not following {args[2]}")
         return
     u = defns.UserList[handle].drop_json(args[2][1:])
@@ -138,6 +139,32 @@ def drop(m):
     else:
         log(f'drop failed, Unknown ack: {ack}')
     return
+
+def exit_user(u):
+    args = u.split(' ')
+    if len(args) != 2:
+        log("Wrong number of args")
+        return
+    handle = args[1][1:]
+    if handle not in defns.UserList:
+        log(f"{args[1]} is not a user")
+        return
+    ack = send({'cmd': 'x', 'handle': handle})
+    if 'ack' in ack:
+        if ack['ack'] == "User removed":
+            # attempt to kill thread, if it does not close before main it will silent fault
+            defns.UserList[handle].alive = False  # signal in thread to die
+            defns.UserList.pop(handle)  # remove user for list
+            log(f'@{handle} is logged out')
+        else:
+            log(f"Exit failed, {ack['ack']}")
+    else:
+        log(f'Exit failed, Unknown ack: {ack}')
+    return
+
+def print_users():
+    for h, u in defns.UserList.items():
+        log(f'@{h}:\n\tfollowing: {u.following}\n\tfollowers: {u.followers}')
 
 def start():
     log(f"Connected to server using IP: {CLIENT_ADDR[0]}, Port: {CLIENT_ADDR[1]}")
@@ -154,12 +181,17 @@ def start():
             elif cmd.startswith("drop"):
                 drop(cmd)
             elif cmd.startswith("exit"):
-                connected = False
+                exit_user(cmd)
+            elif cmd == "status":
+                print_users()
             else:
                 log("Command not recognised")
         send_exit()  # exit from server
     except KeyboardInterrupt:
         log("Caught keyboard interrupt...Stopping")
+        for h in list(defns.UserList):
+            log(f"logging out user: @{defns.UserList[h].handle}")
+            exit_user(f'exit @{defns.UserList[h].handle}')  # attempt to drop all users from the server
         send_exit()  # exit from server
     except defns.Disconnected:
         pass  # server stopped do nothing and end
