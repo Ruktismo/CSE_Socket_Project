@@ -6,6 +6,7 @@ import socket
 import threading
 import sys
 import defns
+from defns import log
 import server_cmds as cmds
 
 # look to jason or pickle for sending objs
@@ -29,13 +30,10 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with 
 try:
     server.bind(ADDR)  # binds socket to IP PORT
 except OSError:
-    print(f"Error: cannot resolve host IP automatically. Manual entry required, use ifconfig to get address")
+    log(f"Error: cannot resolve host IP automatically. Manual entry required, use ifconfig to get address", False)
     SERVER_IP = input("IP: ")
     ADDR = (SERVER_IP, PORT)
     server.bind(ADDR)
-
-def log(s: str):
-    print("server: " + s)
 
 def send(conn: socket.socket, msg_json):
     conn.send(json.dumps(msg_json).encode(defns.FORMAT))
@@ -45,18 +43,9 @@ def run_cmd(conn: socket.socket, addr, msg):
     if cmd == 'p':  # just a basic ping
         conn.send(json.dumps(msg).encode(defns.FORMAT))  # ack msg
     elif cmd == 'r':
-        log("Registering new user")
-        newU = defns.User(addr[0], addr[1])
-        ret = cmds.register_user(msg, newU)
-        if ret == "SUCCESS":
-            log(f"New user {newU.handle} made")
-            send(conn, defns.ack_json("SUCCESS"))  # send ok ack
-        else:
-            log(f"New user {newU.handle} NOT made. Reason: {ret}")
-            send(conn, defns.ack_json("FAIL"))  # send fail ack
+        cmds.register_user(msg, conn, addr)
     elif cmd == 'q':
-        log("Querying handles")
-        cmds.query(conn)
+        cmds.query(conn, addr)
     elif cmd == 'f':
         cmds.follow(conn, msg)
     elif cmd == 'd':
@@ -71,7 +60,7 @@ def run_cmd(conn: socket.socket, addr, msg):
         send(conn, defns.ack_json(f"unknown cmd: {cmd}"))  # send cmd not known ack
 
 def handle_client(conn: socket.socket, addr):
-    log(f"New client on IP: {addr[0]} Port: {addr[1]}\tActive users: {threading.activeCount() - 1}")
+    log(f"New client on IP: {addr[0]} Port: {addr[1]}\tActive users: {threading.activeCount() - 1}", False)
     connected = True
     try:
         while connected:
@@ -83,15 +72,15 @@ def handle_client(conn: socket.socket, addr):
                     connected = False
                 else:
                     # process message
-                    log(f"[{addr}] {msg}")
+                    log(f"[{addr}] {msg}", False)
                     run_cmd(conn, addr, msg)
     except KeyboardInterrupt:
-        log("Caught keyboard interrupt...Stopping")
+        log("Caught keyboard interrupt...Stopping", False)
         conn.send(json.dumps({'EXIT': defns.DISCONNECT_MSG}).encode(defns.FORMAT))
         raise KeyboardInterrupt
     finally:
         conn.close()  # when a keyboard interrupt happens close the connection
-        log(f"[{addr}] disconnected Active users: {threading.activeCount() - 2}")
+        log(f"[{addr}] disconnected Active users: {threading.activeCount() - 2}", False)
 
 def start():
     server.listen()
@@ -102,9 +91,9 @@ def start():
             thread = threading.Thread(target=handle_client, args=(conn, addr))
             thread.start()
         except KeyboardInterrupt:
-            log("Stopped")
+            log("Stopped", False)
             exit(0)
 
 
-log(f"Server is starting with IP: {SERVER_IP} and port: {PORT}")
+log(f"Server is starting with IP: {SERVER_IP} and port: {PORT}", False)
 start()
