@@ -9,7 +9,7 @@ import defns
 from defns import log
 
 SERVER = ""  # default DO NOT USE
-PORT = 38501
+PORT = 80
 if len(sys.argv) == 3:
     SERVER = sys.argv[1]
     # verify that port is valid
@@ -17,7 +17,7 @@ if len(sys.argv) == 3:
     if p and defns.PORT_RANGE[0] <= p <= defns.PORT_RANGE[1]:
         PORT = p
     else:
-        log("PORT OUT OF RANGE. USING DEFAULT PORT OF 38501", True)
+        log("PORT OUT OF RANGE. USING DEFAULT PORT OF 80", True)
 ADDR = (SERVER, PORT)
 CLIENT_IP = socket.gethostbyname_ex(socket.getfqdn())[2][0]
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
