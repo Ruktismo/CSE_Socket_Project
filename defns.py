@@ -18,6 +18,7 @@ def log(s: str, is_client):
         print(f"[Server]: {s}")
 
 def timer(user, conn: socket.socket):
+    log(f"Starting timer for {len(user.followers)*2}sec", True)
     time.sleep(len(user.followers)*2)  # sleep for follow_count * 2 sec
     # if user is still locked to tweeting
     if user.is_tweeting:
@@ -43,8 +44,8 @@ def client_in(ip, port, user):
                 conn.send(json.dumps({'ack': 'Tweet in progress'}).encode(FORMAT))
                 continue
             # someone is following us. add there handle to the list
-            # user.followers.append(msg['handle'])
             user.add_to_ring(msg['handle'], msg['ip'], msg['port_in'])
+            log(f"@{msg['handle']} is now following @{user.handle}", True)
             ack = {'ack': 'follow complete'}
             conn.send(json.dumps(ack).encode(FORMAT))
         elif 'd' in msg['cmd']:  # drop follower
@@ -52,14 +53,15 @@ def client_in(ip, port, user):
                 conn.send(json.dumps({'ack': 'Tweet in progress'}).encode(FORMAT))
                 continue
             # someone has unfollowed us. remove them
-            # user.followers.remove(msg['handle'])
             user.drop_from_ring(msg['handle'])
+            log(f"@{msg['handle']} Dropped @{user.handle}", True)
             conn.send(json.dumps({'ack': 'drop complete'}).encode(FORMAT))
         elif 'u' in msg['cmd']:  # update ring
             for i in range(len(user.following)):
                 # find follow in question
-                if user.following[i][0] is msg['handle']:
+                if user.following[i][0] == msg['handle']:
                     # update ip/port for that link
+                    log(f"@{user.handle} updated info for @{user.following[i][0]}", True)
                     user.following[i] = (msg['handle'], msg['ip'], msg['port'])
                     break  # stop searching
         elif 't' in msg['cmd']:  # tweet
@@ -71,9 +73,13 @@ def client_in(ip, port, user):
                 log(f"@{user.handle}: Tweet has gone the through whole ring.", True)
                 # unlock the user
                 user.is_tweeting = False
+                continue
             # if not check, if the tweet is from one of the people the user is following
+            has_proped = False
             for f in user.following:
                 if f[0] in msg['sh']:
+                    # display tweet for user
+                    log(f"For @{user.handle} from @{msg['fh']}: @{msg['sh']} tweeted\n\t\"{msg['tweet']}\"\n", True)
                     # prop tweet to next user in the ring
                     msg['fh'] = user.handle  # set the from handle to be us
                     soc, port = get_sock(user.ip, f[1:], True)  # get connection to next user in the ring
@@ -83,9 +89,11 @@ def client_in(ip, port, user):
                         break  # don't attempt to send
                     soc.send(json.dumps(msg).encode(FORMAT))
                     soc.close()  # we expect no reply so close the connection after sending
+                    has_proped = True
                     break  # stop searching
             # if we reach here then user is not following tweeter. Send error to server
-            user.server_conn.send(json.dumps(user.end_tweet_error_json(msg['sh'])).encode(FORMAT))
+            if not has_proped:
+                user.server_conn.send(json.dumps(user.end_tweet_error_json(msg['sh'])).encode(FORMAT))
         elif 'ee' in msg['cmd']:
             # something went wrong with the tweet and a user in the ring has killed the propagation
             log(f'Error sending tweet. @{msg["bh"]} was unable to propagate', True)
@@ -171,7 +179,20 @@ class User:
         returns the tuple that has changed.
     """
     def drop_from_ring(self, handle):
-        pass
+        # find point of deletion
+        i = 0
+        # starting at index 1 to skip ring owner
+        for a in range(1, len(self.followers)):
+            if self.followers[a][0].lower() == handle.lower():
+                i = a
+                break
+        # safe to assume that there will be a match since sending client and server both check if following
+        # get update info
+        uNew = (self.followers[i-1][0], self.followers[i][1], self.followers[i][2])
+        self.followers[i-1] = uNew  # apply update
+        # slice out node i
+        self.followers = self.followers[:i] + self.followers[i+1:]
+        return uNew
 
     # make a to_json for each type of msg that can be sent
     def reg_json(self):
@@ -234,6 +255,9 @@ def get_sock(ip, toADDR, is_client):
     log(f'Attempting to make a connection between {ip, port} and {toADDR}', is_client)
     try:
         soc.connect(toADDR)  # TODO catch error if toADDR is unreachable
+    except ConnectionRefusedError:
+        log(f"Connection between {ip, port} and {toADDR} failed. Host unreachable", is_client)
+        return None
     except TimeoutError:
         log(f"Connection timeout between {ip, port} and {toADDR}. Connection failed", is_client)
         return None

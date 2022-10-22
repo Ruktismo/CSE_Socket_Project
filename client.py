@@ -127,14 +127,20 @@ def drop(m):
     if handle not in defns.UserList:
         log(f"{args[1]} is not a user", True)
         return
-    if args[2][1:] not in defns.UserList[handle].following:
+    if not [U for U in defns.UserList[handle].following if args[2][1:] in U]:
         log(f"Not following {args[2]}", True)
         return
     u = defns.UserList[handle].drop_json(args[2][1:])
     ack = send(u)
     if 'ack' in ack:
         if ack['ack'] == "drop complete":
-            defns.UserList[handle].following.remove(args[2][1:])
+            # loop over following list to find drop
+            for a in range(1, len(defns.UserList[handle].following)):
+                # splice out user from following list
+                if defns.UserList[handle].following[a][0] == args[2][1:]:
+                    defns.UserList[handle].following = defns.UserList[handle].following[:a] +\
+                                                       defns.UserList[handle].following[a+1:]
+                    break
             log(f'@{handle} is no longer following {args[2]}', True)
         else:
             log(f"drop failed, {ack['ack']}", True)
@@ -164,7 +170,7 @@ def send_tweet(m):
     if s_ack['ack'] == "SUCCESS":
         defns.UserList[handle].is_tweeting = True  # lock the user to a tweeting state
         # send the tweet to the first member of the ring to start the propagation to the followers
-        follower = defns.UserList[handle].following[0][1:]
+        follower = defns.UserList[handle].followers[0][1:]
         soc, port = defns.get_sock(CLIENT_IP, follower, True)
         soc.send(json.dumps(t_json).encode(defns.FORMAT))
         soc.close()  # we expect no reply so close the connection after sending
@@ -227,10 +233,13 @@ def start():
         send_exit()  # exit from server
     except KeyboardInterrupt:
         log("Caught keyboard interrupt...Stopping", True)
-        for h in list(defns.UserList):
-            log(f"logging out user: @{defns.UserList[h].handle}", True)
-            exit_user(f'exit @{defns.UserList[h].handle}')  # attempt to drop all users from the server
-        send_exit()  # exit from server
+        try:
+            for h in list(defns.UserList):
+                log(f"logging out user: @{defns.UserList[h].handle}", True)
+                exit_user(f'exit @{defns.UserList[h].handle}')  # attempt to drop all users from the server
+            send_exit()  # exit from server
+        except Exception:
+            log("Unable to gracefully exit form server, it may have died", True)
     except defns.Disconnected:
         pass  # server stopped do nothing and end
 

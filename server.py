@@ -89,8 +89,8 @@ def start():
     while True:
         try:
             conn, addr = server.accept()  # blocks until a connection is made and returns info about connection
-            # pass off client to a new thread
-            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            # pass off client to a new thread. set to daemon so that is main thread dies all die
+            thread = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
             thread.start()
         except KeyboardInterrupt:
             log("Stopped", False)

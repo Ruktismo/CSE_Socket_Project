@@ -117,7 +117,7 @@ def drop(conn: socket.socket, msg):
 
 def tweet(conn: socket.socket, msg):
     # log tweet
-    log(f"@{msg['sh']} has tweeted: {msg['tweet']}", False)
+    log(f"@{msg['sh']} has tweeted: \n\t\"{msg['tweet']}\"\n", False)
     # lock the user
     defns.UserList[msg['sh']].is_tweeting = True
     ack = defns.ack_json("SUCCESS")
