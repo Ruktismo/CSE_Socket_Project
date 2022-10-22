@@ -2,6 +2,7 @@ import json
 import socket
 import threading
 import random as r
+import time
 
 # shared vars for server and client
 FORMAT = "utf-8"
@@ -16,6 +17,15 @@ def log(s: str, is_client):
     else:
         print(f"[Server]: {s}")
 
+def timer(user, conn: socket.socket):
+    time.sleep(len(user.followers)*2)  # sleep for follow_count * 2 sec
+    # if user is still locked to tweeting
+    if user.is_tweeting:
+        log(f"Timeout: @{user.handle}'s Tweet did not return", True)
+        # send error status to server and end tweet
+        conn.send(json.dumps(user.end_tweet_error_json(user.handle)).encode(FORMAT))
+        user.is_tweeting = False
+
 
 def client_in(ip, port, user):
     log(f'User @{user.handle} opening port {port}', True)
@@ -29,14 +39,21 @@ def client_in(ip, port, user):
         msg = json.loads(msg_json)
         log(f"Received for user: @{user.handle}, {msg}", True)
         if 'f' in msg['cmd']:  # add follower
+            if user.is_tweeting:
+                conn.send(json.dumps({'ack': 'Tweet in progress'}).encode(FORMAT))
+                continue
             # someone is following us. add there handle to the list
             # user.followers.append(msg['handle'])
             user.add_to_ring(msg['handle'], msg['ip'], msg['port_in'])
             ack = {'ack': 'follow complete'}
             conn.send(json.dumps(ack).encode(FORMAT))
         elif 'd' in msg['cmd']:  # drop follower
+            if user.is_tweeting:
+                conn.send(json.dumps({'ack': 'Tweet in progress'}).encode(FORMAT))
+                continue
             # someone has unfollowed us. remove them
-            user.followers.remove(msg['handle'])
+            # user.followers.remove(msg['handle'])
+            user.drop_from_ring(msg['handle'])
             conn.send(json.dumps({'ack': 'drop complete'}).encode(FORMAT))
         elif 'u' in msg['cmd']:  # update ring
             for i in range(len(user.following)):
@@ -46,7 +63,33 @@ def client_in(ip, port, user):
                     user.following[i] = (msg['handle'], msg['ip'], msg['port'])
                     break  # stop searching
         elif 't' in msg['cmd']:  # tweet
-            pass
+            # check if the tweet is yours
+            if user.handle in msg['sh']:
+                # send end tweet to the server
+                user.server_conn.send(json.dumps(user.end_tweet_json()).encode(FORMAT))
+                # log that tweet has completed
+                log(f"@{user.handle}: Tweet has gone the through whole ring.", True)
+                # unlock the user
+                user.is_tweeting = False
+            # if not check, if the tweet is from one of the people the user is following
+            for f in user.following:
+                if f[0] in msg['sh']:
+                    # prop tweet to next user in the ring
+                    msg['fh'] = user.handle  # set the from handle to be us
+                    soc, port = get_sock(user.ip, f[1:], True)  # get connection to next user in the ring
+                    if soc is None:
+                        # Send end-tweet-error to the server
+                        user.server_conn.send(json.dumps(user.end_tweet_error_json(msg['sh'])).encode(FORMAT))
+                        break  # don't attempt to send
+                    soc.send(json.dumps(msg).encode(FORMAT))
+                    soc.close()  # we expect no reply so close the connection after sending
+                    break  # stop searching
+            # if we reach here then user is not following tweeter. Send error to server
+            user.server_conn.send(json.dumps(user.end_tweet_error_json(msg['sh'])).encode(FORMAT))
+        elif 'ee' in msg['cmd']:
+            # something went wrong with the tweet and a user in the ring has killed the propagation
+            log(f'Error sending tweet. @{msg["bh"]} was unable to propagate', True)
+            user.is_tweeting = False
         else:
             log(f"Unknown msg {msg}", True)
         conn.close()
@@ -56,7 +99,7 @@ def ack_json(ack):
     return {'ack': ack}
 
 class User:
-    def __init__(self, ip, port_server):
+    def __init__(self, ip, port_server, is_client, server_conn: socket.socket = None):
         # followers/ing wil have tuple format (handle, forward_ip, forward_port)
         self.following = []  # hold handles that they are following (just their part of each ring they are a part of)
         self.followers = []  # hold handles that are following them (the whole logical ring)
@@ -65,10 +108,14 @@ class User:
         self.port_in = None  # port used to listen for tweets
         self.port_out = None  # port used to send tweets
         self.handle = None
+        self.is_tweeting = False  # locks the user to a tweeting state. All follows and drops are ignored
+        self.is_client = is_client  # to track weather this obj was made by server or client
+        # client only vars, will be None on server side
         self.in_thread = None  # reference to users listening thread
         self.alive = True  # shutdown signaler for thread
+        self.server_conn = server_conn  # hold link to server
 
-    def register(self, handle: str, port_in, port_out, is_client):
+    def register(self, handle: str, port_in, port_out):
         self.handle = handle
         # check if handle is in use
         if handle not in UserList:
@@ -80,7 +127,7 @@ class User:
             # put ring owner as the first member of the ring who just loops back to self
             self.followers.append((self.handle, self.ip, self.port_in))
 
-            if is_client:
+            if self.is_client:
                 # spawn off new thread
                 log(f"Spawning off new thread for: @{self.handle}", True)
                 self.in_thread = threading.Thread(target=client_in, args=(self.ip, self.port_in, self), daemon=True)
@@ -152,11 +199,32 @@ class User:
             'h2': user
         }
 
+    def tweet_json(self, tweet, fh):
+        return {
+            'cmd': 't',
+            'sh': self.handle,  # handle of tweeter
+            'tweet': tweet,  # the contents of the tweet
+            'fh': fh  # the handle of the user that passed the tweet to you
+        }
+
+    def end_tweet_json(self):
+        return {
+            'cmd': 'e',
+            'h': self.handle
+        }
+
+    def end_tweet_error_json(self, sh):
+        return {
+            'cmd': 'ee',
+            'sh': sh,
+            'bh': self.handle
+        }
+
 
 def get_sock(ip, toADDR, is_client):
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     bound = False
-    port = r.randint(PORT_RANGE[0], PORT_RANGE[1])
+    port = r.randint(PORT_RANGE[0], PORT_RANGE[1])  # bind to a valid port in our range
     while not bound:
         try:
             soc.bind((ip, port))
@@ -164,7 +232,11 @@ def get_sock(ip, toADDR, is_client):
         except OSError:
             port = r.randint(PORT_RANGE[0], PORT_RANGE[1])
     log(f'Attempting to make a connection between {ip, port} and {toADDR}', is_client)
-    soc.connect(toADDR)
+    try:
+        soc.connect(toADDR)  # TODO catch error if toADDR is unreachable
+    except TimeoutError:
+        log(f"Connection timeout between {ip, port} and {toADDR}. Connection failed", is_client)
+        return None
     log(f"Connection made between {ip, port} and {toADDR}", is_client)
     return soc, port
 

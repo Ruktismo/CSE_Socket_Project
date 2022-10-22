@@ -19,8 +19,8 @@ p = int(sys.argv[1])
 if p and defns.PORT_RANGE[0] <= p <= defns.PORT_RANGE[1]:
     PORT = p
 else:
-    print("PORT OUT OF RANGE. USING DEFAULT PORT OF 80")
-    PORT = 80
+    print("PORT OUT OF RANGE. USING DEFAULT PORT OF 38500")
+    PORT = 38500
 
 # SERVER_IP = "0.0.0.0"  # can put in IP manually, set to all interfaces
 SERVER_IP = socket.gethostbyname_ex(socket.getfqdn())[2][0]  # or just have socket get it auto
@@ -51,9 +51,11 @@ def run_cmd(conn: socket.socket, addr, msg):
     elif cmd == 'd':
         cmds.drop(conn, msg)
     elif cmd == 't':
-        pass
+        cmds.tweet(conn, msg)
     elif cmd == 'e':
-        pass
+        cmds.end_tweet(conn, msg)
+    elif cmd == 'ee':
+        cmds.end_tweet_error(conn, msg)
     elif cmd == 'x':
         cmds.exit_user(conn, msg)
     else:

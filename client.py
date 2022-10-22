@@ -5,11 +5,13 @@ import json
 import socket
 import sys
 import random as r
+import threading
+
 import defns
 from defns import log
 
 SERVER = ""  # default DO NOT USE
-PORT = 80
+PORT = 38501
 if len(sys.argv) == 3:
     SERVER = sys.argv[1]
     # verify that port is valid
@@ -17,7 +19,7 @@ if len(sys.argv) == 3:
     if p and defns.PORT_RANGE[0] <= p <= defns.PORT_RANGE[1]:
         PORT = p
     else:
-        log("PORT OUT OF RANGE. USING DEFAULT PORT OF 80", True)
+        log("PORT OUT OF RANGE. USING DEFAULT PORT OF 38501", True)
 ADDR = (SERVER, PORT)
 CLIENT_IP = socket.gethostbyname_ex(socket.getfqdn())[2][0]
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # makes server with IPv4 and set to a stream of data
@@ -60,9 +62,9 @@ def register(s):
     if len(args) != 5:
         log("Wrong number of args", True)
         return
-    newU = defns.User(CLIENT_ADDR[0], CLIENT_ADDR[1])
+    newU = defns.User(CLIENT_ADDR[0], CLIENT_ADDR[1], True, client)
     # check is handle is used locally
-    ret = newU.register(args[1][1:], int(args[3]), int(args[4]), True)
+    ret = newU.register(args[1][1:], int(args[3]), int(args[4]))
     if ret == "Handle In Use":
         log("Handle In Use", True)
         return
@@ -140,6 +142,38 @@ def drop(m):
         log(f'drop failed, Unknown ack: {ack}', True)
     return
 
+def send_tweet(m):
+    # setting split to only separate the cmd and handle and leave the rest of the input string alone.
+    # since the tweet may have spaces, and we don't want to split that
+    args = m.split(' ', maxsplit=2)
+    if len(args) != 3:
+        log("Wrong number of args", True)
+        return
+    # verify that handle is real and that tweet is <= 140 chars
+    handle = args[1][1:]
+    if handle not in defns.UserList:
+        log(f"{args[1]} is not a user", True)
+        return
+    tweet = args[2][1:-1]  # cut off "" from the arg
+    if len(tweet) > 140:
+        log(f"Tweet is too long. {len(tweet)} > 140", True)
+        return
+    # send the tweet to the server to log it and lock your ring until tweet is done
+    t_json = defns.UserList[handle].tweet_json(tweet, handle)
+    s_ack = send(t_json)
+    if s_ack['ack'] == "SUCCESS":
+        defns.UserList[handle].is_tweeting = True  # lock the user to a tweeting state
+        # send the tweet to the first member of the ring to start the propagation to the followers
+        follower = defns.UserList[handle].following[0][1:]
+        soc, port = defns.get_sock(CLIENT_IP, follower, True)
+        soc.send(json.dumps(t_json).encode(defns.FORMAT))
+        soc.close()  # we expect no reply so close the connection after sending
+        log(f"Tweet for @{handle} sent.", True)
+        # start a timer thread that will send ete to server after timeout
+        threading.Thread(target=defns.timer, args=(defns.UserList[handle], client), daemon=True)
+    else:
+        log(f"Something went wrong with the server. {s_ack}", True)
+
 def exit_user(u):
     args = u.split(' ')
     if len(args) != 2:
@@ -180,10 +214,14 @@ def start():
                 follow(cmd)
             elif cmd.startswith("drop"):
                 drop(cmd)
+            elif cmd.startswith("tweet"):
+                send_tweet(cmd)
             elif cmd.startswith("exit"):
                 exit_user(cmd)
             elif cmd == "status":
                 print_users()
+            elif cmd == "kill":
+                exit(-1)  # debug: exit program ungracefully
             else:
                 log("Command not recognised", True)
         send_exit()  # exit from server

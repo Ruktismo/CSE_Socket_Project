@@ -6,6 +6,7 @@ cmds:
     d: drop @<handle-me> @<handle>
     t: tweet @<handle> "tweet"
     e: end-tweet @<handle>
+    ee: end-tweet-error @<handle-sender> @<handle-break>
     x: exit @<handle>
 
 https://www.youtube.com/watch?v=3QiPPX-KeSc
