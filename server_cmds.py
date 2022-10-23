@@ -44,7 +44,7 @@ def follow(conn: socket.socket, msg):
         conn.send(json.dumps({'ack': 'follow failed, user is tweeting. Try again later'}).encode(defns.FORMAT))
         return
     # pass follower info to handle2
-    log(f"Pass follower request to @{msg['h2']}", True)
+    log(f"Pass follower request to @{msg['h2']}", False)
     f2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
     soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], f2, False)
 
@@ -60,7 +60,7 @@ def follow(conn: socket.socket, msg):
         defns.UserList[u2[0]].update_ring(u2)
 
         # connect to u2 and push update
-        log(f"Follower added for @{msg['h2']} pass update to @{u2[0]}", True)
+        log(f"Follower added for @{msg['h2']} pass update to @{u2[0]}", False)
         u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
         u2SOC, u2PORT = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2ADDR, False)
         update_cmd = {'cmd': 'u', 'handle': msg['h2'], 'ip': u2[1], 'port': u2[2]}
@@ -91,7 +91,7 @@ def drop(conn: socket.socket, msg):
         conn.send(json.dumps({'ack': 'drop failed, user is tweeting. Try again later'}).encode(defns.FORMAT))
         return
     # pass drop info to handle2
-    log(f"Pass drop request to @{msg['h2']}", True)
+    log(f"Pass drop request to @{msg['h2']}", False)
     f2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
     soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], f2, False)
 
@@ -111,7 +111,7 @@ def drop(conn: socket.socket, msg):
                 break  # stop searching
         defns.UserList[u2[0]].update_ring(u2)  # update u2 on server end as well
         # connect to u2 and push update
-        log(f"Follower removed for @{msg['h2']} pass update to @{u2[0]}", True)
+        log(f"Follower removed for @{msg['h2']} pass update to @{u2[0]}", False)
         u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
         u2SOC, u2PORT = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2ADDR, False)
         update_cmd = {'cmd': 'u', 'handle': msg['h2'], 'ip': u2[1], 'port': u2[2]}
@@ -176,7 +176,7 @@ def exit_user(conn: socket.socket, msg):
             u2 = defns.UserList[user[0]].drop_from_ring(exiter.handle)
             defns.UserList[u2[0]].update_ring((user[0], u2[1], u2[2]))  # update u2 on server end as well
             # connect to u2 and push update
-            log(f"Follower removed for @{user[0]} pass update to @{u2[0]}", True)
+            log(f"Follower removed for @{user[0]} pass update to @{u2[0]}", False)
             u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
             u2SOC, u2PORT = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2ADDR, False)
             update_cmd = {'cmd': 'u', 'handle': user[0], 'ip': u2[1], 'port': u2[2]}
