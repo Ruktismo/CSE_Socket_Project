@@ -200,6 +200,9 @@ def exit_user(u):
             log(f"Exit failed, {ack['ack']}", True)
     else:
         log(f'Exit failed, Unknown ack: {ack}', True)
+    if len(defns.UserList) == 0:
+        log("All users logged out, closing program.", True)
+        exit(0)
     return
 
 def print_users():

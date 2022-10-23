@@ -147,11 +147,11 @@ def exit_user(conn: socket.socket, msg):
     exiter = defns.UserList[msg['handle']]
     for user in exiter.following:
         # make socket
-        u2 = (defns.UserList[user].ip, defns.UserList[user].port_in)
+        u2 = (defns.UserList[user[0]].ip, defns.UserList[user[0]].port_in)
         soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2, False)
-        follow_cmd = {'cmd': 'd', 'handle': exiter.handle}
+        drop_cmd = {'cmd': 'd', 'handle': exiter.handle}
         # send cmd and wait for ack
-        soc.send(json.dumps(follow_cmd).encode(defns.FORMAT))
+        soc.send(json.dumps(drop_cmd).encode(defns.FORMAT))
         json.loads(soc.recv(defns.MAXBUFF).decode(defns.FORMAT))
         # ack is not needed. if error is returned we do nothing
         soc.close()

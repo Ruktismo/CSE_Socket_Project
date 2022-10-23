@@ -10,3 +10,14 @@ cmds:
     x: exit @<handle>
 
 https://www.youtube.com/watch?v=3QiPPX-KeSc
+
+python client.py 128.110.217.179 38501
+
+node0:
+    ip: 128.110.217.179
+node1:
+    ip: 128.110.217.191
+node2:
+    ip: 128.110.217.186
+node3:
+    ip: 128.110.217.203
