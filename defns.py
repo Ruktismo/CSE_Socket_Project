@@ -86,6 +86,7 @@ def client_in(ip, port, user):
                     if soc is None:
                         # Send end-tweet-error to the server
                         user.server_conn.send(json.dumps(user.end_tweet_error_json(msg['sh'])).encode(FORMAT))
+                        has_proped = True  # prevent other error form triggering as well
                         break  # don't attempt to send
                     soc[0].send(json.dumps(msg).encode(FORMAT))
                     soc[0].close()  # we expect no reply so close the connection after sending
