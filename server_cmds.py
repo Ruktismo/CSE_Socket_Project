@@ -41,6 +41,7 @@ def follow(conn: socket.socket, msg):
         conn.send(json.dumps({'ack': 'follow failed, user is tweeting. Try again later'}).encode(defns.FORMAT))
         return
     # pass follower info to handle2
+    log(f"Pass follower request to @{msg['h2']}", True)
     f2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
     soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], f2, False)
 
@@ -54,6 +55,7 @@ def follow(conn: socket.socket, msg):
         u1, u2 = defns.UserList[msg['h2']].add_to_ring(msg['h1'], msg['ip'], msg['port_in'])
 
         # connect to u2 and push update
+        log(f"Follower added for @{msg['h2']} pass update to @{u2[0]}", True)
         u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
         u2SOC, u2PORT = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2ADDR, False)
         update_cmd = {'cmd': 'u', 'handle': msg['h2'], 'ip': u2[1], 'port': u2[2]}
@@ -84,6 +86,7 @@ def drop(conn: socket.socket, msg):
         conn.send(json.dumps({'ack': 'drop failed, user is tweeting. Try again later'}).encode(defns.FORMAT))
         return
     # pass drop info to handle2
+    log(f"Pass follower request to @{msg['h2']}", True)
     f2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
     soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], f2, False)
 
@@ -97,6 +100,7 @@ def drop(conn: socket.socket, msg):
         u2 = defns.UserList[msg['h2']].drop_from_ring(msg['h1'])
 
         # connect to u2 and push update
+        log(f"Follower removed for @{msg['h2']} pass update to @{u2[0]}", True)
         u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
         u2SOC, u2PORT = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2ADDR, False)
         update_cmd = {'cmd': 'u', 'handle': msg['h2'], 'ip': u2[1], 'port': u2[2]}

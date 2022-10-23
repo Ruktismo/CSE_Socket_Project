@@ -1,0 +1,35 @@
+python server.py 38501
+
+python client.py 128.110.219.6 38501
+
+node0:
+    ip: 128.110.219.6
+node1:
+    ip: 128.110.218.250
+node2:
+    ip: 128.110.218.248
+node3:
+    ip: 128.110.219.3
+node4:
+    ip: 128.110.219.11
+node5:
+    ip: 128.110.218.246
+
+n1) register @u1 128.110.218.250 38502 38503
+n2) register @u2 128.110.218.248 38504 38505
+n3) register @u3 128.110.219.3 38506 38507
+n4) register @u4 128.110.219.11 38508 38509
+n5) register @u5 128.110.218.246 38510 38511
+n5) query handles
+n1) follow @u1 @u2
+n3) follow @u3 @u2
+n3) follow @u3 @u4
+n5) follow @u5 @u4
+n3) status
+n2) tweet @u2 "Hello form u2!"
+n3) drop @u3 @u2
+n1) ^C
+n2) status
+n2) exit @u2
+n5) kill
+n4) tweet @u4 "This is an error tweet"

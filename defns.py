@@ -82,13 +82,13 @@ def client_in(ip, port, user):
                     log(f"For @{user.handle} from @{msg['fh']}: @{msg['sh']} tweeted\n\t\"{msg['tweet']}\"\n", True)
                     # prop tweet to next user in the ring
                     msg['fh'] = user.handle  # set the from handle to be us
-                    soc, port = get_sock(user.ip, f[1:], True)  # get connection to next user in the ring
+                    soc = get_sock(user.ip, f[1:], True)  # get connection to next user in the ring
                     if soc is None:
                         # Send end-tweet-error to the server
                         user.server_conn.send(json.dumps(user.end_tweet_error_json(msg['sh'])).encode(FORMAT))
                         break  # don't attempt to send
-                    soc.send(json.dumps(msg).encode(FORMAT))
-                    soc.close()  # we expect no reply so close the connection after sending
+                    soc[0].send(json.dumps(msg).encode(FORMAT))
+                    soc[0].close()  # we expect no reply so close the connection after sending
                     has_proped = True
                     break  # stop searching
             # if we reach here then user is not following tweeter. Send error to server
@@ -254,7 +254,7 @@ def get_sock(ip, toADDR, is_client):
             port = r.randint(PORT_RANGE[0], PORT_RANGE[1])
     log(f'Attempting to make a connection between {ip, port} and {toADDR}', is_client)
     try:
-        soc.connect(toADDR)  # TODO catch error if toADDR is unreachable
+        soc.connect(toADDR)
     except ConnectionRefusedError:
         log(f"Connection between {ip, port} and {toADDR} failed. Host unreachable", is_client)
         return None

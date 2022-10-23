@@ -176,7 +176,8 @@ def send_tweet(m):
         soc.close()  # we expect no reply so close the connection after sending
         log(f"Tweet for @{handle} sent.", True)
         # start a timer thread that will send ete to server after timeout
-        threading.Thread(target=defns.timer, args=(defns.UserList[handle], client), daemon=True)
+        t = threading.Thread(target=defns.timer, args=(defns.UserList[handle], client), daemon=True)
+        t.start()
     else:
         log(f"Something went wrong with the server. {s_ack}", True)
 
