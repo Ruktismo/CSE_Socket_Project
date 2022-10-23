@@ -24,6 +24,9 @@ def register_user(msg, conn: socket.socket, addr):
 
 def query(conn: socket.socket, addr):
     log(f"Received query from {addr}", False)
+    log("current status of all users:", False)
+    for h, u in defns.UserList.items():
+        log(f'@{h}:\n\tfollowing: {u.following}\n\tfollowers: {u.followers}', False)
     handles = list(defns.UserList)
     ack = {'ack': 1, 'userC': len(handles), 'users': handles}
     conn.send(json.dumps(ack).encode(defns.FORMAT))
@@ -53,6 +56,8 @@ def follow(conn: socket.socket, msg):
     if 'ack' in ack and ack['ack'] == 'follow complete':
         # update ring on server end
         u1, u2 = defns.UserList[msg['h2']].add_to_ring(msg['h1'], msg['ip'], msg['port_in'])
+        defns.UserList[u1[0]].following.append((msg['h2'], u1[1], u1[2]))  # update users on server end as well
+        defns.UserList[u2[0]].update_ring(u2)
 
         # connect to u2 and push update
         log(f"Follower added for @{msg['h2']} pass update to @{u2[0]}", True)
@@ -86,7 +91,7 @@ def drop(conn: socket.socket, msg):
         conn.send(json.dumps({'ack': 'drop failed, user is tweeting. Try again later'}).encode(defns.FORMAT))
         return
     # pass drop info to handle2
-    log(f"Pass follower request to @{msg['h2']}", True)
+    log(f"Pass drop request to @{msg['h2']}", True)
     f2 = (defns.UserList[msg['h2']].ip, defns.UserList[msg['h2']].port_in)
     soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], f2, False)
 
@@ -98,7 +103,13 @@ def drop(conn: socket.socket, msg):
     if 'ack' in ack and ack['ack'] == 'drop complete':
         # update ring on server end
         u2 = defns.UserList[msg['h2']].drop_from_ring(msg['h1'])
-
+        # remove h2 from h1
+        for i in range(len(defns.UserList[msg['h1']].following)):
+            if defns.UserList[msg['h1']].following[i][0] == msg['h2']:
+                defns.UserList[msg['h1']].followers = defns.UserList[msg['h1']].followers[:i] + \
+                                                      defns.UserList[msg['h1']].followers[i+1:]
+                break  # stop searching
+        defns.UserList[u2[0]].update_ring(u2)  # update u2 on server end as well
         # connect to u2 and push update
         log(f"Follower removed for @{msg['h2']} pass update to @{u2[0]}", True)
         u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
@@ -149,16 +160,28 @@ def exit_user(conn: socket.socket, msg):
         return
     # send a drop to all users in handles follow list
     exiter = defns.UserList[msg['handle']]
-    for user in exiter.following:
+    for i in range(len(exiter.following)):
+        user = exiter.following[i]
         # make socket
         u2 = (defns.UserList[user[0]].ip, defns.UserList[user[0]].port_in)
         soc, port = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2, False)
         drop_cmd = {'cmd': 'd', 'handle': exiter.handle}
         # send cmd and wait for ack
+        log(f"Dropping @{user[0]} from @{exiter.handle}", False)
         soc.send(json.dumps(drop_cmd).encode(defns.FORMAT))
-        json.loads(soc.recv(defns.MAXBUFF).decode(defns.FORMAT))
-        # ack is not needed. if error is returned we do nothing
+        ack = json.loads(soc.recv(defns.MAXBUFF).decode(defns.FORMAT))
         soc.close()
+        if 'ack' in ack and ack['ack'] == 'drop complete':
+            # update ring on server end
+            u2 = defns.UserList[user[0]].drop_from_ring(exiter.handle)
+            defns.UserList[u2[0]].update_ring((user[0], u2[1], u2[2]))  # update u2 on server end as well
+            # connect to u2 and push update
+            log(f"Follower removed for @{user[0]} pass update to @{u2[0]}", True)
+            u2ADDR = (defns.UserList[u2[0]].ip, defns.UserList[u2[0]].port_in)
+            u2SOC, u2PORT = defns.get_sock(socket.gethostbyname_ex(socket.getfqdn())[2][0], u2ADDR, False)
+            update_cmd = {'cmd': 'u', 'handle': user[0], 'ip': u2[1], 'port': u2[2]}
+            u2SOC.send(json.dumps(update_cmd).encode(defns.FORMAT))
+            u2SOC.close()  # no reply is expected
     # all users dropped remove user obj
     defns.UserList.pop(msg['handle'])
     log(f"@{msg['handle']} has exited", False)

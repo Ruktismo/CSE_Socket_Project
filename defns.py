@@ -57,13 +57,7 @@ def client_in(ip, port, user):
             log(f"@{msg['handle']} Dropped @{user.handle}", True)
             conn.send(json.dumps({'ack': 'drop complete'}).encode(FORMAT))
         elif 'u' in msg['cmd']:  # update ring
-            for i in range(len(user.following)):
-                # find follow in question
-                if user.following[i][0] == msg['handle']:
-                    # update ip/port for that link
-                    log(f"@{user.handle} updated info for @{user.following[i][0]}", True)
-                    user.following[i] = (msg['handle'], msg['ip'], msg['port'])
-                    break  # stop searching
+            user.update_ring((msg['handle'], msg['ip'], msg['port']))
         elif 't' in msg['cmd']:  # tweet
             # check if the tweet is yours
             if user.handle in msg['sh']:
@@ -194,6 +188,15 @@ class User:
         # slice out node i
         self.followers = self.followers[:i] + self.followers[i+1:]
         return uNew
+
+    def update_ring(self, u1):
+        for i in range(len(self.following)):
+            # find follow in question
+            if self.following[i][0] == u1[0]:
+                # update ip/port for that link
+                log(f"@{self.handle} updated info for @{self.following[i][0]}", self.is_client)
+                self.following[i] = u1
+                break  # stop searching
 
     # make a to_json for each type of msg that can be sent
     def reg_json(self):
